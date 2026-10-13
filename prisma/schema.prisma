@@ -1,0 +1,255 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURN_REQUESTED
+  RETURNED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  UPI
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  phone         String?
+  passwordHash  String?
+  role          Role           @default(CUSTOMER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  addresses     Address[]
+  orders        Order[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  phone        String
+  email        String
+  addressLine1 String
+  addressLine2 String?
+  landmark     String?
+  city         String
+  state        String
+  pincode      String
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  products    Product[]
+}
+
+model Product {
+  id              String            @id @default(cuid())
+  slug            String            @unique
+  name            String
+  tagline         String
+  description     String
+  categoryId      String?
+  category        Category?         @relation(fields: [categoryId], references: [id])
+  fit             String            @default("Oversized")
+  gsm             Int               @default(240)
+  fabric          String            @default("100% Organic French Terry Combed Cotton")
+  price           Int               // Stored in INR minor units or integer rupees
+  originalPrice   Int
+  discountPercent Int               @default(0)
+  isFeatured      Boolean           @default(false)
+  isBestseller    Boolean           @default(false)
+  isNewArrival    Boolean           @default(false)
+  tag             String?
+  rating          Float             @default(5.0)
+  reviewCount     Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  variants        ProductVariant[]
+  images          ProductImage[]
+  frames360       Product360Frame[]
+  reviews         Review[]
+  orderItems      OrderItem[]
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      String   // S, M, L, XL, XXL
+  color     String
+  colorHex  String
+  stock     Int      @default(0)
+  sku       String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String
+  angle     String  // Front, Back, Right Side, Left Side, Top Neck, Bottom Hem, Puff Print, Folded
+  sortOrder Int     @default(0)
+}
+
+model Product360Frame {
+  id         String  @id @default(cuid())
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  frameIndex Int     // 0 to 35
+  imageUrl   String
+}
+
+model Order {
+  id                    String        @id
+  userId                String?
+  user                  User?         @relation(fields: [userId], references: [id])
+  guestEmail            String?
+  subtotal              Int
+  discount              Int           @default(0)
+  shippingCharge        Int           @default(0)
+  total                 Int
+  appliedCoupon         String?
+  shippingFullName      String
+  shippingPhone         String
+  shippingEmail         String
+  shippingAddressLine1  String
+  shippingAddressLine2  String?
+  shippingLandmark      String?
+  shippingCity          String
+  shippingState         String
+  shippingPincode       String
+  paymentMethod         PaymentMethod @default(RAZORPAY)
+  paymentStatus         PaymentStatus @default(PENDING)
+  razorpayPaymentId     String?
+  razorpayOrderId       String?
+  status                OrderStatus   @default(CONFIRMED)
+  trackingNumber        String?
+  carrierName           String?
+  estimatedDeliveryDate String
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  items                 OrderItem[]
+  statusHistory         AuditLog[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  productName String
+  price       Int      // Historical snapshot price
+  size        String
+  color       String
+  quantity    Int
+  createdAt   DateTime @default(now())
+}
+
+model Review {
+  id               String        @id @default(cuid())
+  productId        String
+  product          Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?         @relation(fields: [userId], references: [id])
+  authorName       String
+  authorInitials   String
+  city             String
+  sizeBought       String
+  colorBought      String
+  rating           Int           @default(5)
+  comment          String
+  verifiedPurchase Boolean       @default(true)
+  helpfulCount     Int           @default(0)
+  photoUrl         String?
+  usageDuration    String?
+  status           String        @default("approved") // approved, pending, rejected
+  createdAt        DateTime      @default(now())
+}
+
+model Coupon {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  type          String   // flat or percentage
+  value         Int
+  minOrderValue Int      @default(0)
+  description   String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+}
+
+model BusinessSetting {
+  id                    String   @id @default("default")
+  storeName             String   @default("TEE HUB")
+  tagline               String   @default("Find Your Fit. Own Your Style.")
+  announcementText      String   @default("Free shipping across India on orders above ₹999")
+  announcementSubtext   String   @default("All prints handcrafted 240 GSM organic French Terry")
+  announcementActive    Boolean  @default(true)
+  freeShippingThreshold Int      @default(999)
+  standardShippingFee   Int      @default(99)
+  codEnabled            Boolean  @default(true)
+  razorpayTestMode      Boolean  @default(true)
+  supportEmail          String   @default("concierge@teehub.in")
+  supportPhone          String   @default("+91 98200 12345")
+  updatedAt             DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  action      String
+  details     String
+  performedBy String   @default("system")
+  createdAt   DateTime @default(now())
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}

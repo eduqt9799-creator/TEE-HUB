@@ -1,0 +1,6 @@
+{
+  "name": "TEE HUB — Premium T-Shirt E-Commerce Platform",
+  "description": "High-end Indian streetwear T-shirt online store featuring interactive 360° product viewers, multi-angle HD apparel inspection, cart, checkout, order tracking, and admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
